@@ -1,28 +1,28 @@
-#include<stdio.h>
-#include<unistd.h>
-#include<sys/stat.h>
-#include<fcntl.h>
-#include<string.h>
-#define FIFO1 "fifo1"
-#define FIFO2 "fifo2"
-#define PERMS 0666
-char fname[256];
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 int main()
 {
-	ssize_t n;
-	char buff[512];
-	int readfd,writefd;
-	printf("trying to connect to server...\n");
-	writefd=open(FIFO1,O_WRONLY,0);
-	readfd=open(FIFO2,O_RDONLY,0);
-	printf("connected...\n");
-	printf("enter the filename to request from server:");
-	scanf("%s",fname);
-	write(writefd,fname,strlen(fname));
-	printf("waiting for server to reply...\n");
-	while((n=read(readfd,buff,512))>0)
-		write(1,buff,n);
-	close(readfd);
-	close(writefd);
+	char fname[50], buffer[1025];
+	int req, res, n;
+	req = open("req.fifo", O_WRONLY);
+	res = open("res.fifo", O_RDONLY);
+	if(req < 0 || res < 0) {
+		printf("Please Start the server first\n");
+		exit(-1);
+	}
+	printf("Enter filename to request:\n");
+	scanf("%s", fname);
+	write(req, fname, sizeof(fname));
+	printf("Received response\n");
+	while((n = read(res, buffer, sizeof(buffer)))>0) {
+		write(1, buffer, n);
+	}
+	close(req);
+	close(res);
 	return 0;
 }

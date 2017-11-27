@@ -1,43 +1,31 @@
-#include<stdio.h>
-#include<unistd.h>
-#include<sys/stat.h>
-#include<fcntl.h>
-#include<string.h>
-#define FIFO1 "fifo1"
-#define FIFO2 "fifo2"
-#define PERMS 0666
-char fname[256];
+#include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h> /*used for file handling*/
+#include <sys/stat.h> /*used for mkfifo function*/
+#include <sys/types.h> /*when compiled in gcc, mkfifo() has dependency on both types.h and stat.h*/
+
 int main()
 {
-	int readfd,writefd,fd;
-	ssize_t n;
-	char buff[512];
-
-  if(mkfifo(FIFO1,PERMS)<0)
-		printf("cant create fifo files\n");
-
-  if(mkfifo(FIFO2,PERMS)<0)
-		printf("cant create fifo files\n");
-
-  printf("waiting for connection request...\n");
-	readfd=open(FIFO1,O_RDONLY,0);
-	writefd=open(FIFO2,O_WRONLY,0);
-	printf("connection established...\n");
-	read(readfd,fname,255);
-	printf("client has requested file %s \n",fname);
-
-  if((fd=open(fname,O_RDWR))<0)
-	{
-		strcpy(buff,"File does not exist..\n");
-		write(writefd,buff,strlen(buff));
+	char fname[50], buffer[1025];
+	int req, res, n, file;
+	mkfifo("req.fifo", 0777);
+	mkfifo("res.fifo", 0777);
+	printf("Waiting for request...\n");
+	req = open("req.fifo", O_RDONLY);
+	res = open("res.fifo", O_WRONLY);
+	read(req, fname, sizeof(fname));
+	printf("Received request for %s\n", fname);
+	file = open(fname, O_RDONLY);
+	if (file < 0)
+		write(res, "File not found\n", 15);
+	else {
+		while((n = read(file, buffer, sizeof(buffer))) > 0) {
+			write(res, buffer, n);
+		}
 	}
-
-  else
-	{
-		while((n=read(fd,buff,512))>0)
-			write(writefd,buff,n);
-	}
-
-  close(readfd); unlink(FIFO1);
-	close(writefd);	unlink(FIFO2);
+	close(req);
+	close(res);
+	unlink("req.fifo");
+	unlink("res.fifo");
+	return 0;
 }

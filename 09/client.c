@@ -1,43 +1,37 @@
-#include<sys/socket.h>
-#include<sys/types.h>
-#include<netinet/in.h>
-#include<arpa/inet.h>
-#include<unistd.h>
-#include<stdlib.h>
-#include<stdio.h>
-int main(int argc,char *argv[])
+#include <stdio.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+int main()
 {
-	int create_socket,cont;
-	int bufsize=1024;
+	int soc, n;
+	char buffer[1024], fname[50];
+	struct sockaddr_in addr;
 
-  char *buffer=malloc(bufsize);
-	char fname[256];
+	/*  socket creates an endpoint for communication and returns a file descriptor */
+	soc = socket(PF_INET, SOCK_STREAM, 0);
 
-  struct sockaddr_in address;
+	/*
+	 * sockaddr_in is used for ip manipulation
+	 * we define the port and IP for the connection.
+	 */
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(7891);
+	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-  if((create_socket=socket(AF_INET,SOCK_STREAM,0))>0)
-		printf("the socket was created\n");
+	/*  keep trying to esatablish connection with server */
+	while(connect(soc, (struct sockaddr *) &addr, sizeof(addr))) ;
+	printf("\nClient is connected to Server");
+	printf("\nEnter file name: ");
+	scanf("%s", fname);
+	/*  send the filename to the server */
+	send(soc, fname, sizeof(fname), 0);
 
-  address.sin_family=AF_INET;
-	address.sin_addr.s_addr = inet_addr(argv[1]);
-	address.sin_port=htons(15000);
-	//inet_pton(AF_INET,argv[1],&address.sin_addr);
+	printf("\nRecieved response\n");
+	/*  keep printing any data received from the server */
+	while ((n = recv(soc, buffer, sizeof(buffer), 0)) > 0)
+		printf("%s", buffer);
 
-  if(connect(create_socket,(struct sockaddr *)&address,sizeof(address))==0)
-		printf("the connection was accepted with the server %s... \n",argv[1]);
-
-  printf("enter the filename to request:");
-	scanf("%s",fname);
-
-  send(create_socket,fname,sizeof(fname),0);
-
-  printf("request accepted...receiving file...\n\n");
-	printf("the contents of file are..\n\n");
-
-  while((cont=recv(create_socket,buffer,bufsize,0))>0)
-	{
-		write(1,buffer,cont);
-	}
-	printf("\nEOF\n");
-	return close(create_socket);
+	return 0;
 }

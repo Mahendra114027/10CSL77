@@ -1,54 +1,41 @@
-#include<stdio.h>
-#include<sys/socket.h>
-#include<netinet/in.h>
-#include<sys/stat.h>
-#include<arpa/inet.h>
-#include<unistd.h>
-#include<stdlib.h>
-#include<stdio.h>
-#include<fcntl.h>
+#include <stdio.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 int main()
 {
-  int cont,create_socket,new_socket,addrlen,fd;
-  int bufsize=1024;
+	int welcome, new_soc, fd, n;
+	char buffer[1024], fname[50];
+	struct sockaddr_in addr;
 
-  char *buffer=malloc(bufsize);
-  char fname[256];
+	welcome = socket(PF_INET, SOCK_STREAM, 0);
 
-  struct sockaddr_in address;
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(7891);
+	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-  if((create_socket=socket(AF_INET,SOCK_STREAM,0))>0)
-    printf("the socket was created\n");
+	bind(welcome, (struct sockaddr *) &addr, sizeof(addr));
+	printf("\nServer is Online");
+	/*  listen for connections from the socket */
+	listen(welcome, 5);
+	/*  accept a connection, we get a file descriptor */
+	new_soc = accept(welcome, NULL, NULL);
 
-  address.sin_family=AF_INET;
-  address.sin_addr.s_addr=INADDR_ANY;
-  address.sin_port=htons(15000);
+	/*  receive the filename */
+	recv(new_soc, fname, 50, 0);
+	printf("\nRequesting for file: %s\n", fname);
 
-  if(bind(create_socket,(struct sockaddr *)&address,sizeof(address))==0)
-    printf("binding socket\n");
+	/*  open the file and send its contents */
+	fd = open(fname, O_RDONLY);
 
-  listen(create_socket,3);
+	if (fd < 0)
+		send(new_soc, "\nFile not found\n", 15, 0);
+	else
+		while ((n = read(fd, buffer, sizeof(buffer))) > 0)
+			send(new_soc, buffer, n, 0);
+	printf("\nRequest sent\n");
+	close(fd);
 
-  addrlen=sizeof(struct sockaddr_in);
-  new_socket=accept(create_socket,(struct sockaddr *)&address,&addrlen);
-
-  if(new_socket>0)
-    printf("the client %s is connected...\n",inet_ntoa(address.sin_addr));
-
-  recv(new_socket,fname,255,0);
-  printf("a request for filename %s received..\n",fname);
-
-  if((fd=open(fname,O_RDONLY))<0)
-  {
-    perror("file open failed"); exit(0);
-  }
-
-  while((cont=read(fd,buffer,bufsize))>0)
-  {
-    send(new_socket,buffer,cont,0);
-  }
-
-  printf("request completed\n");
-  close(new_socket);
-  return close(create_socket);
+	return 0;
 }
